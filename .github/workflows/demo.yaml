@@ -22,13 +22,19 @@ jobs:
   build:
     needs: test  # Ensures the build job runs only after the test job succeeds.
     runs-on: ubuntu-latest
+    outputs:
+        script-file: ${{ steps.publish.outputs.script-file }}
     steps:
-      - name: Get code
+      - name: Get Code
         uses: actions/checkout@v3
       - name: Install dependencies
         run: npm ci
-      - name: Build website
+      - name: Build Website
         run: npm run build
+
+      - name: Publish JS Filenmae
+        id: publish
+        run: find dist/assets/*.js -type f -execdir echo 'script-file={}' >> $GITHUB_OUTPUT ';' 
 
       # Upload artifacts: Saves the build output (from the 'dist' folder) as artifacts.
       # Artifacts are files or directories that can be shared between jobs in the same workflow.
@@ -54,6 +60,9 @@ jobs:
       # This is just to verify that the artifacts were downloaded successfully.
       - name: Output Contents
         run: ls
+
+      - name: Output Filename
+        run: echo ${{ needs.build.outputs.script-file }}
 
       # Deploy step: This would typically involve commands to upload the website to a server or hosting platform.
       # The example here just echoes a message, but you would replace this with actual deployment commands.
