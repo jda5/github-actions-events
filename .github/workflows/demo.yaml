@@ -11,6 +11,11 @@ jobs:
     steps:
       - name: Get code
         uses: actions/checkout@v3
+      - name: Cache Dependencies
+        uses: actions/cache@v3
+        with:
+            path: ~/.npm
+            key: deps-node-modules-${{ hashFiles('**/package-lock.json') }}
       - name: Install dependencies
         run: npm ci
       - name: Lint code
@@ -18,53 +23,60 @@ jobs:
       - name: Test code
         run: npm run test
 
-  # Build job: Builds the website and uploads build artifacts for the deploy job.
+  # Build job: Builds the website, uploads build artifacts, and sets a job output.
   build:
     needs: test  # Ensures the build job runs only after the test job succeeds.
     runs-on: ubuntu-latest
     outputs:
+        # This defines a job output named 'script-file' that other jobs can reference.
+        # Its value is set using the output of the 'publish' step.
         script-file: ${{ steps.publish.outputs.script-file }}
     steps:
       - name: Get Code
         uses: actions/checkout@v3
+      - name: Cache Dependencies
+        uses: actions/cache@v3
+        with:
+            path: ~/.npm
+            key: deps-node-modules-${{ hashFiles('**/package-lock.json') }}
       - name: Install dependencies
         run: npm ci
       - name: Build Website
         run: npm run build
 
-      - name: Publish JS Filenmae
-        id: publish
-        run: find dist/assets/*.js -type f -execdir echo 'script-file={}' >> $GITHUB_OUTPUT ';' 
+      - name: Publish JS Filename
+        id: publish  # The 'id' is used to reference outputs from this step.
+        # This step finds JavaScript files in the 'dist/assets/' directory and sets the name as an output.
+        # '$GITHUB_OUTPUT' is a special file where outputs for steps can be written.
+        run: find dist/assets/*.js -type f -execdir echo 'script-file={}' >> $GITHUB_OUTPUT ';'
 
       # Upload artifacts: Saves the build output (from the 'dist' folder) as artifacts.
-      # Artifacts are files or directories that can be shared between jobs in the same workflow.
       - name: Upload Artifacts
         uses: actions/upload-artifact@v3
         with:
           name: dist-files  # The name of the artifact (used for referencing it in later jobs).
           path: dist        # The directory or file to upload as an artifact.
 
-  # Deploy job: Retrieves the build artifacts and prepares for deployment.
+  # Deploy job: Retrieves the build artifacts and the output from the build job.
   deploy:
     needs: build  # Ensures the deploy job runs only after the build job succeeds.
     runs-on: ubuntu-latest
     steps:
       # Download artifacts: Retrieves the previously uploaded 'dist-files' artifacts.
-      # This allows the deploy job to access the build output created in the build job.
       - name: Get Build Artifacts
         uses: actions/download-artifact@v3
         with:
-            name: dist-files  # The name of the artifact to download (matches the name in 'Upload Artifacts').
+            name: dist-files  # The name of the artifact to download.
 
       # Output contents: Lists the contents of the current directory (optional debugging step).
-      # This is just to verify that the artifacts were downloaded successfully.
       - name: Output Contents
         run: ls
 
+      # Access the job output from the build job.
+      # Outputs are accessed using the 'needs.<job_id>.outputs.<output_name>' syntax.
       - name: Output Filename
         run: echo ${{ needs.build.outputs.script-file }}
 
       # Deploy step: This would typically involve commands to upload the website to a server or hosting platform.
-      # The example here just echoes a message, but you would replace this with actual deployment commands.
       - name: Deploy
         run: echo "Deploying..."
