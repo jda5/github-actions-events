@@ -5,6 +5,7 @@ on:
       - main
 
 jobs:
+  # Test job: Ensures the code passes linting and tests before proceeding.
   test:
     runs-on: ubuntu-latest
     steps:
@@ -17,8 +18,9 @@ jobs:
       - name: Test code
         run: npm run test
 
+  # Build job: Builds the website and uploads build artifacts for the deploy job.
   build:
-    needs: test
+    needs: test  # Ensures the build job runs only after the test job succeeds.
     runs-on: ubuntu-latest
     steps:
       - name: Get code
@@ -27,21 +29,33 @@ jobs:
         run: npm ci
       - name: Build website
         run: npm run build
+
+      # Upload artifacts: Saves the build output (from the 'dist' folder) as artifacts.
+      # Artifacts are files or directories that can be shared between jobs in the same workflow.
       - name: Upload Artifacts
         uses: actions/upload-artifact@v3
         with:
-          name: dist-files
-          path: dist
+          name: dist-files  # The name of the artifact (used for referencing it in later jobs).
+          path: dist        # The directory or file to upload as an artifact.
 
+  # Deploy job: Retrieves the build artifacts and prepares for deployment.
   deploy:
-    needs: build
+    needs: build  # Ensures the deploy job runs only after the build job succeeds.
     runs-on: ubuntu-latest
     steps:
+      # Download artifacts: Retrieves the previously uploaded 'dist-files' artifacts.
+      # This allows the deploy job to access the build output created in the build job.
       - name: Get Build Artifacts
         uses: actions/download-artifact@v3
         with:
-            name: dist-files
+            name: dist-files  # The name of the artifact to download (matches the name in 'Upload Artifacts').
+
+      # Output contents: Lists the contents of the current directory (optional debugging step).
+      # This is just to verify that the artifacts were downloaded successfully.
       - name: Output Contents
         run: ls
+
+      # Deploy step: This would typically involve commands to upload the website to a server or hosting platform.
+      # The example here just echoes a message, but you would replace this with actual deployment commands.
       - name: Deploy
         run: echo "Deploying..."
